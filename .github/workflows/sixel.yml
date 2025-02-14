@@ -30,7 +30,7 @@ jobs:
         with:
           version: ${{ env.cosmocc_version }}
 
-      - nme: Setup env
+      - name: Setup env
         run: |
           mkdir ~/prefix
           mkdir ~/scratch
