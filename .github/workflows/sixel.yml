@@ -59,7 +59,6 @@ jobs:
         run: |
           git clone https://github.com/bjia56/SDL1.2-SIXEL.git
           cd SDL1.2-SIXEL
-          cp /usr/share/automake-*/config.guess .
           ./configure --prefix=${{ env.prefix }} --disable-shared --disable-audio --disable-joystick \
                       --disable-cdrom --disable-loadso --disable-video-x11 --disable-video-photon --disable-video-cocoa \
                       --disable-video-directfb --disable-video-ps2gs --disable-video-ps3 --disable-video-svga --disable-video-vgl \
