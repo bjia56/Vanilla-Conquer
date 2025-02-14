@@ -141,7 +141,7 @@ endif()
 
 if(SDL1)
     find_package(SDL REQUIRED)
-    list(APPEND VANILLA_LIBS ${SDL_LIBRARY})
+    list(APPEND VANILLA_LIBS ${SDL_LIBRARY} sixel)
     include_directories(${SDL_INCLUDE_DIR})
 
     # winuser.h defines VK_ macros but it can be prevented

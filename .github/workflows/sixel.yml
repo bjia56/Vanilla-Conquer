@@ -1,0 +1,118 @@
+name: Build sixel
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["sixel"]
+  pull_request:
+
+
+jobs:
+  build:
+    name: Build Vanilla-Conquer ${{ matrix.arch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, aarch64]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Load cosmocc version
+        run: |
+          version=$(cat .github/cosmocc_version.txt)
+          echo "cosmocc_version=${version}" >> "$GITHUB_ENV"
+
+      - name: Setup cosmocc
+        uses: bjia56/setup-cosmocc@v0.0.3
+        with:
+          version: ${{ env.cosmocc_version }}
+
+      - nme: Setup env
+        run: |
+          mkdir ~/prefix
+          mkdir ~/scratch
+          echo "prefix=$(realpath ~/prefix)" >> $GITHUB_ENV
+          echo "scratch=$(realpath ~/scratch)" >> $GITHUB_ENV
+          echo "CC=${{ matrix.arch }}-unknown-cosmo-cc" >> $GITHUB_ENV
+          echo "CXX=${{ matrix.arch }}-unknown-cosmo-c++" >> $GITHUB_ENV
+          echo "LDFLAGS=-L$(realpath ~/prefix)/lib" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=$(realpath ~/prefix)/lib/pkgconfig" >> $GITHUB_ENV
+
+      - name: Build libsixel
+        working-directory: ${{ env.scratch }}
+        run: |
+          git clone https://github.com/saitoha/libsixel.git
+          cd libsixel
+          ./configure --disable-shared --disable-python --disable-img2sixel --disable-sixel2png --prefix=${{ env.prefix }}
+          make -j
+          make install
+
+      - name: Build SDL1
+        working-directory: ${{ env.scratch }}
+        run: |
+          git clone https://github.com/bjia56/SDL1.2-SIXEL.git
+          cd SDL1.2-SIXEL
+          ./configure --disable-shared --disable-audio --disable-joystick --disable-cdrom --disable-loadso \
+                      --disable-video-x11 --disable-video-photon --disable-video-cocoa --disable-video-directfb \
+                      --disable-video-ps2gs --disable-video-ps3 --disable-video-svga --disable-video-vgl \
+                      --disable-video-wscons --enable-video-sixel --disable-video-opengl
+          make -j
+          make install
+
+      - name: Build Vanilla-Conquer
+        run: |
+          cmake -B build -DCMAKE_PREFIX_PATH=${{ env.prefix }} -DSDL1=ON -DSDL2=OFF -DOPENAL=OFF -DBUILD_VANILLATD=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+          cmake --build build --parallel
+          cp ./build/vanillara vanillara-${{ matrix.arch }}
+
+      - name: Upload vanillara
+        uses: actions/upload-artifact@v4
+        with:
+          name: vanillara-${{ matrix.arch }}
+          path: ./vanillara-${{ matrix.arch }}
+
+  apelink:
+    name: Apelink Vanilla-Conquer
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Load cosmocc version
+        run: |
+          version=$(cat .github/cosmocc_version.txt)
+          echo "cosmocc_version=${version}" >> "$GITHUB_ENV"
+
+      - name: Setup cosmocc
+        uses: bjia56/setup-cosmocc@v0.0.3
+        with:
+          version: ${{ env.cosmocc_version }}
+        
+      - name: Download vanillara
+        uses: actions/download-artifact@v4
+        with:
+          pattern: vanillara-*
+          path: /tmp/vanillara/
+          merge-multiple: true
+  
+      - name: Apelink
+        run: |
+          cosmo_bin=$(dirname $(which cosmocc))
+          $(which apelink) \
+            -l ${cosmo_bin}/ape-x86_64.elf \
+            -l ${cosmo_bin}/ape-aarch64.elf \
+            -M ${cosmo_bin}/ape-m1.c \
+            -o vanillara.exe \
+            /tmp/vanillara/vanillara-x86_64 \
+            /tmp/vanillara/vanillara-aarch64
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: vanillara.exe
+          path: ./vanillara.exe
