@@ -15,7 +15,7 @@
 #include "vqatask.h"
 #include "timer.h"
 #include <algorithm>
-#include <sys/timeb.h>
+//#include <sys/timeb.h>
 
 static TimerClass timer;
 
